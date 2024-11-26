@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 
 data_pp/
+eeg_sleep/
 
 
 *.pkl 
