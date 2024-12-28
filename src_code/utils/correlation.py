@@ -11,7 +11,8 @@ from dadapy.data import Data
 import matplotlib.pyplot as plt
 from utils.utils import logger
 
-
+# A function to get mean and std of cosine similarity of each pair with same index 
+# of rows between the two matrices. So sim(row1_dat1, row1_dat2),... then take mean and std of these.
 def cosine_sim(dataset1: np.array, dataset2: np.array) -> tuple[float, float]:
     '''
     Function to compute cosine similarity between two data sets
@@ -46,9 +47,11 @@ def compute_correlation(dataset1, dataset2, file_path: str, mask: bool=False) ->
     the masks for each channel or between raw signals themselves. 
     The correlation is computed using a novel Id based method.
 
-    The ID for the dataset made of the concatenation of the two masks (or the two raw signals) is computed.
-    Then, the ID is computed for datasets obtained by shuffling the order of first set of data.
-    The Z-score and p-value are computed to assess the significance of the correlation.
+    The ID for the dataset made of the concatenation of the two masks (or the two raw signals) is computed,
+    along with the ID of the two separated masks. After that the correlation index is computed.
+    Then, the p-value is computed by estimating the ID for shuffles of first set of data
+    in the concatenated dataset and comparing it with cor_idx.
+    The p-value is computed to assess the significance of the correlation index.
 
     Input:
         dataset1 (MaskDataset or EEGDataset): first dataset
@@ -57,8 +60,8 @@ def compute_correlation(dataset1, dataset2, file_path: str, mask: bool=False) ->
         mask: whether to use raw data or masks learned on spectrograms
 
     Return: 
-        zscore: zscore of the correlation
-        pvalue: pvalue of the correlation
+        cor_idx: index of the correlation
+        pvalue: pvalue of the correlation index
         pearson_coeff: Pearson coefficient of the correlation
     """
 
@@ -102,29 +105,30 @@ def compute_correlation(dataset1, dataset2, file_path: str, mask: bool=False) ->
     
     mu, sigma = cosine_sim(data1, data2)
     full_data = np.concatenate([data1, data2], axis=1)
-    noshuffle, err = compute_id(full_data, nrep=5)
+    idC, err = compute_id(full_data, nrep=5)
+    id1, _ = compute_id(data1, nrep=5)
+    id2, _ = compute_id(data2, nrep=5)
+    
+    cor_idx = (id1 + id2 - idC) / max(id1, id2)
     
     # compute Pearson coefficient
     pearson_coeff = np.corrcoef(data1.flatten(), data2.flatten())
     assert pearson_coeff.shape == (2, 2), f'Error: Pearson coefficient has shape {pearson_coeff.shape}'
     pearson_coeff = pearson_coeff[0,1] 
-
-    shuffle = []
-    zscore = 2
-    nrepeat = 0
-    while zscore > 1. and nrepeat < 300:
+    
+    S = 0
+    C = 0
+    while S < 100:
         for _ in tqdm(range(50)):
             permutation = np.random.permutation(data1)
             del full_data
             full_data=np.concatenate([permutation, data2], axis=1)
             id, _ = compute_id(full_data, nrep=1)
-            shuffle.append(id)
-            nrepeat += 1
-        
-        zscore = (noshuffle - np.mean(shuffle))/np.std(shuffle)
+            if id <= idC:
+                C += 1
+            S += 1
     
-    shuffle=np.array(shuffle)
-    pvalue=scipy.stats.norm.cdf(zscore)
+    pvalue = (C + 1) / (S + 1)
     
     try:
         with open(file_path, 'a') as f:
@@ -133,29 +137,27 @@ def compute_correlation(dataset1, dataset2, file_path: str, mask: bool=False) ->
             f.write(f'Pearson coefficient: {pearson_coeff}\n')
 
             f.write(f'Cosine similarity: mean {mu}, std {sigma}\n')
-            f.write(f'No-shuffle Id: {noshuffle}\n')
-            f.write(f'Shuffled Id mean: {shuffle.mean()}, std: {shuffle.std()}\n')
-            f.write(f'Z-score: {zscore}\n')
+            f.write(f'Correlation index: {cor_idx}\n')
             f.write(f'P-value: {pvalue}\n')
             f.write(f'---------------------------------------\n\n')
     except:
         logger.error('Error: cannot write on file')
 
-    return zscore, pvalue, pearson_coeff
+    return cor_idx, pvalue, pearson_coeff
 
 
 
 
-def plot_correlation_table(path: str, results: dict, mask: bool, band_range: str, kind:str = 'zscore'):
+def plot_correlation_table(path: str, results: dict, mask: bool, band_range: str, kind:str = 'cor_idx'):
     """
     Function to save the correlation tables as images
     """
-    if kind == 'zscore':
-        table = results['zscore']
+    if kind == 'cor_idx':
+        table = results['cor_idx']
         pvalues = results['pvalue']
-        title = 'Zscores between raw signals' if not mask else 'Zscores between masks'
+        title = 'Correlation index between raw signals' if not mask else 'Correlation index between masks'
         title += ' - ' + band_range 
-        file_path = path[:-9]+'zscore.png'
+        file_path = path[:-9]+'cor_idx.png'
 
     elif kind == 'pearson':
         table = results['pearson']
@@ -171,9 +173,9 @@ def plot_correlation_table(path: str, results: dict, mask: bool, band_range: str
     
     channels = results['channels']
 
-    # plot correlation table for zscore and pvalue
-    fig, ax = plt.subplots(figsize=(10, 10))
-    im = ax.imshow(table, cmap='Blues_r') if kind == 'zscore' else ax.imshow(table, cmap='coolwarm', vmin=-1, vmax=1)
+    # plot correlation table for cor_idx and pvalue
+    fig, ax = plt.subplots(figsize=(25, 25))
+    im = ax.imshow(table, cmap='Blues') if kind == 'cor_idx' else ax.imshow(table, cmap='coolwarm', vmin=-1, vmax=1)
     ax.set_xticks(np.arange(len(channels)))
     ax.set_yticks(np.arange(len(channels)))
     ax.set_xticklabels(channels)
@@ -182,17 +184,17 @@ def plot_correlation_table(path: str, results: dict, mask: bool, band_range: str
     ax.set_title(title, fontsize=20)
     ax.set_xlabel('Channel 1', fontsize=20)
     ax.set_ylabel('Channel 2', fontsize=20)
-    # put zscore in each cell
+    # put cor_idx in each cell
     for i in range(len(channels)):
         for j in range(i, len(channels)):
-            _ = ax.text(j, i, round(table[i, j], 2), ha="center", va="center", color="k", fontsize=60/len(channels))
+            _ = ax.text(j, i, round(table[i, j], 2), ha="center", va="center", color="k", fontsize=1)
             # and also pvalue in scientific notation
-            if kind == 'zscore':
-                _ = ax.text(j, i+0.3, '{:.1E}'.format(pvalues[i, j]), ha="center", va="center", color="k", fontsize=60/len(channels))
+            if kind == 'cor_idx':
+                _ = ax.text(j, i+0.3, '{:.1E}'.format(pvalues[i, j]), ha="center", va="center", color="k", fontsize=1)
 
     plt.colorbar(im, ax=ax, shrink=0.8)
     # increase image resolution
-    plt.savefig(file_path, dpi=300)
+    plt.savefig(file_path, dpi=800)
     plt.close()
 
     

@@ -53,7 +53,7 @@ def load_dataloaders(file_path: str):
 def get_montage(raw):
 
     # montage available in mne
-    montage = mne.channels.make_standard_montage('standard_1020')
+    montage = mne.channels.make_standard_montage('GSN-HydroCel-128')
 
     # make a copy of montage positions
     montage_pos = copy.deepcopy(montage._get_ch_pos())
@@ -75,22 +75,13 @@ def get_montage(raw):
 def get_topographic_map(filename: str, size: int=500) -> tuple:
     """
     Function to obtain the positions (montage) of the electrodes with respect
-    to the given edf file.
+    to the given set file.
     If plot is True, it plots the topographic map of the gamma band.
-    - filename: a random edf file from the dataset
+    - filename: a random set file from the dataset
     - size: number of data points in the time interval to plot
     """
     # read file from folder
-    raw = mne.io.read_raw_edf(filename, preload=True, verbose=False);
-    
-    # standardize channel names
-    raw.rename_channels(lambda x: x.upper()[4:])
-
-    # remove ECG channel
-    raw.drop_channels(['ECG'])
-    # and name A2-A1 as A2
-    #raw.rename_channels({'A2-A1': 'A2'})
-    raw.drop_channels(['A2-A1'])
+    raw = mne.io.read_raw_eeglab(filename, preload=True, verbose=False);
 
     # set montage
     custom_montage = get_montage(raw)

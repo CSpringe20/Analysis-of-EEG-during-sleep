@@ -145,7 +145,7 @@ def plot_mask(file_path: str, mask: np.array):
 ## PLOT FUNCTIONS FOR CORRELATION ANALYSIS ##
 #############################################
 
-def plot_correlation_differences(correlation_folder: str, classification: str, pears_th: float=0.4, zscore_th: float=0.005):
+def plot_correlation_differences(correlation_folder: str, classification: str, pears_th: float=0.4, cor_idx_th: float=0.005):
     """
     Plot differences in the Pearson and Id-based correlation values 
     found for the EEG raw data.
@@ -153,7 +153,7 @@ def plot_correlation_differences(correlation_folder: str, classification: str, p
         correlation_folder: folder containing the correlation tables
         classification: type of classification (e.g. 'cq', 'ms')
         pears_th: threshold for the Pearson correlation
-        zscore_th: threshold for the zscore
+        cor_idx_th: threshold for the cor_idx
     """
     band_ranges = ['delta', 'theta', 'alpha', 'beta', 'gamma', 'full_spectrum']
     for curr_band in band_ranges:
@@ -169,17 +169,17 @@ def plot_correlation_differences(correlation_folder: str, classification: str, p
 
             # generate plot
             plt.figure(figsize=(10, 5))
-            table_zscore, pvalues, table_pearson = info['zscore'], info['pvalue'], info['pearson']
+            table_cor_idx, pvalues, table_pearson = info['cor_idx'], info['pvalue'], info['pearson']
 
             # set inferior threshold for pearson
             cp_pearson = copy.deepcopy(table_pearson)
             cp_pearson[cp_pearson > pears_th] = 0
 
-            # set superior threshold for zscore
-            cp_zscore = copy.deepcopy(table_zscore)
-            cp_zscore[pvalues > zscore_th] = 0
+            # set superior threshold for cor_idx
+            cp_cor_idx = copy.deepcopy(table_cor_idx)
+            cp_cor_idx[pvalues > cor_idx_th] = 0
 
-            intersection_table = copy.deepcopy(cp_zscore)
+            intersection_table = copy.deepcopy(cp_cor_idx)
             intersection_table[cp_pearson == 0] = 0
 
             # plot pearson with threshold
@@ -187,8 +187,8 @@ def plot_correlation_differences(correlation_folder: str, classification: str, p
             ax1.imshow(cp_pearson, cmap='coolwarm_r', vmin=-1, vmax=1)
             ax1.set_title(f'Pearson < {pears_th}', fontsize=15)
 
-            ax2.imshow(cp_zscore, cmap='Blues_r')
-            ax2.set_title(f'Zscores with pvalue < {zscore_th}', fontsize=15)
+            ax2.imshow(cp_cor_idx, cmap='Blues_r')
+            ax2.set_title(f'Correlation index with pvalue < {cor_idx_th}', fontsize=15)
 
             # intersection
             ax3.imshow(intersection_table, cmap='Greens_r')
@@ -211,151 +211,141 @@ def plot_correlation_differences(correlation_folder: str, classification: str, p
             for i in range(len(info['channels'])):
                 for j in range(i, len(info['channels'])):
                     if intersection_table[i, j] != 0:
-                        print(f'Channels {info["channels"][i]} and {info["channels"][j]} have different correlation values  - Pearson: {cp_pearson[i, j]}, Zscore: {cp_zscore[i, j]}')
+                        print(f'Channels {info["channels"][i]} and {info["channels"][j]} have different correlation values  - Pearson: {cp_pearson[i, j]}, Correlation index: {cp_cor_idx[i, j]}')
             print('-----------------------------------')
 
 
-def correlation_connectivity_graphs(correlation_folder: str, edf_file: str, classification: str, type: str='nonlinear'):
+def correlation_connectivity_graphs(correlation_folder: str, set_file: str, type: str='nonlinear', band: str=None, rmv_bad: str=None, pvalue_th: float=0.50, cor_idx_th: float=0.70, pears_th: float=0.70):
     """
     Plot connectivity graphs for the correlation analysis
     Input:
         correlation_folder: folder containing the correlation tables
-        edf_file: path to one of the original edf files (used to retrieve electrode positions)
-        classification: type of classification (e.g. 'cq', 'ms')
-        type: type of correlation ('zscore', 'pearson', 'nonlinear')
+        set_file: path to one of the original edf files (used to retrieve electrode positions)
+        type: type of correlation ('cor_idx', 'pearson', 'nonlinear')
+        band: band for which to plot correlation connectivity graph
+        rmv_bad: if the dataset was cleaned or not
+        pvalue_th: threshold for pvalue considered
+        cor_idx_th: threshold for cor_idx condidered
+        pears_th: threshold for pearson condidered
     """
-
-    band_ranges = ['alpha']
-    cp_zscore = [None, None]
-    cp_pearson = [None, None]
-    intersection_table = [[[]]*len(band_ranges), [[]]*len(band_ranges)] # intersection of zscore and pearson for all bands
-
-    results_folder = f'{correlation_folder}/_connectivity_graphs'
+    assert type in ['cor_idx', 'pearson', 'nonlinear'], "Error: please select from ['cor_idx', 'pearson', 'nonlinear']"
+    assert rmv_bad in ['clean', 'not_clean'], "Error: please select from ['clean', 'not_clean']"
+    assert band, "Error: please select a band directory."
+    results_folder = f'{correlation_folder}connectivity_graphs'
     if not os.path.exists(results_folder):
         os.makedirs(results_folder)
+    table_path  =  f'{correlation_folder}/{band}/{rmv_bad}/correlation_table.pkl' 
+    assert os.path.exists(table_path), f"Error: The path '{table_path}' does not exist."
 
-    for b, curr_band in enumerate(band_ranges):
-        for c in [0]:
-            print(f'Band: {curr_band} - Class: {c}')
-            band = f'{curr_band}_band' if curr_band != 'full_spectrum' else curr_band
+    print(f'Band: {band}')
+    cp_cor_idx = []
+    cp_pearson = []
 
-            table_path  =  f'{correlation_folder}/{band}_{classification}/class_{str(c)}/correlation_table.pkl' 
+    # open file and read tables
+    with open(table_path, 'rb') as f:
+        info = pickle.load(f)
 
-            # open file and read tables
-            with open(table_path, 'rb') as f:
-                info = pickle.load(f)
+    table_cor_idx, pvalues, table_pearson = info['cor_idx'], info['pvalue'], info['pearson']
 
-            # generate plot
-            plt.figure(figsize=(10, 5))
-            table_zscore, pvalues, table_pearson = info['zscore'], info['pvalue'], info['pearson']
+    if type=='cor_idx':
+        # plot only strong and plausible cor_idx correlations
+        mask = pvalues < pvalue_th
+        cp_cor_idx = copy.deepcopy(table_cor_idx)
+        cp_cor_idx[cp_cor_idx < cor_idx_th] = 0
+        cp_cor_idx = np.where(mask, cp_cor_idx, 0)
 
-            if type=='zscore':
-                # plot strong wrt zscore correlations
-                cp_zscore[c] = copy.deepcopy(table_zscore)
-                zscore_th = 0.000000003
-                cp_zscore[c][pvalues > zscore_th] = 0
-            elif type=='pearson':
-                # plot strong linear correlations
-                cp_pearson[c] = copy.deepcopy(table_pearson)
-                pears_th = 0.88
-                cp_pearson[c][cp_pearson[c] < pears_th] = 0
-            elif type=='nonlinear':
-                # plot strong nonlinear correlations
-                cp_pearson = copy.deepcopy(table_pearson)
-                pears_th = 0.45
-                cp_pearson[cp_pearson > pears_th] = 0
-                cp_zscore[c] = copy.deepcopy(table_zscore)
-                zscore_th = 0.005
-                cp_zscore[c][pvalues > zscore_th] = 0
-
-                intersection_table[c][b] = cp_zscore[c]
-                intersection_table[c][b][cp_pearson == 0] = 0
-            
-        # save graph
-        file_path = f'{results_folder}/{type}_{classification}_{band}.png'
-
-        if type=='zscore':
-            save_graph(cp_zscore, file_path, edf_file, classification, intensity=False, index='zscore')
-        
-        if type=='pearson':
-            save_graph(cp_pearson, file_path, edf_file, classification)
-
-        if type=='nonlinear':
-            save_graph(cp_zscore, file_path, edf_file, classification)
-
-    # if type is nonlinear save also the intersection table for all bands
-    if type=='nonlinear':
-        file_path = f'{results_folder}/{type}_{classification}_all_frequencies.png'
-        intersection_table[0] = np.sum(intersection_table[0], axis=0)
-        intersection_table[1] = np.sum(intersection_table[1], axis=0)
-        save_graph(intersection_table, file_path, edf_file, classification)
+    elif type=='pearson':
+        # plot only strong and plausible linear correlations
+        cp_pearson = copy.deepcopy(table_pearson)
+        cp_pearson[cp_pearson < pears_th] = 0
+    elif type=='nonlinear':
+        # plot only strong and plausible nonlinear correlations
+        mask = pvalues < pvalue_th
+        cp_pearson = copy.deepcopy(table_pearson)
+        cp_cor_idx = copy.deepcopy(table_cor_idx)
+        cp_pearson[cp_pearson < pears_th] = 0
+        cp_cor_idx[cp_cor_idx < cor_idx_th] = 0
+        cp_cor_idx = np.where(mask, cp_cor_idx, 0)
+        #differences = cp_cor_idx - np.abs(cp_pearson)
+        #mask = differences < 0
+        #cp_cor_idx = np.where(mask, cp_cor_idx, 0)  
 
 
-def save_graph(graph: np.array, file_path: str, edf_file: str, classification_type: str, intensity: bool=False, index: str='pearson'):
+    # save graph
+    file_path = f'{results_folder}/{type}_{band}.png'
+    if type=='pearson':
+        save_graph(cp_pearson, file_path, set_file, index=type, band=band, rmv_bad=rmv_bad)
+    else:
+        save_graph(cp_cor_idx, file_path, set_file, index=type, band=band, rmv_bad=rmv_bad)
+
+
+
+def save_graph(graph: np.array=None, file_path: str='', set_file: str='', intensity: bool=False, index: str=None, band: str='', rmv_bad: str=''):
     """
-    Function to draw and save connectivity graph for Class 0 only for a given correlation matrix.
+    Function to draw and save connectivity graph for a given correlation matrix
     Input:
         graph: correlation matrix
         file_path: path to save the graph
-        edf_file: path to one of the original edf files (used to retrieve electrode positions)
-        classification_type: type of classification ('cq', 'ms')
+        set_file: path to one of the original edf files (used to retrieve electrode positions)
         intensity: whether to plot the intensity of the edges
-        index: index of the correlation matrix ('pearson', 'zscore')
+        index: index of the correlation matrix ('pearson', 'cor_idx', 'nonlinear')
     """
-    # retrieve topographic map for the given eeg data
-    raw, positions = get_topographic_map(edf_file)
 
-    # Create a modified colormap
+    # retrieve topographic map for the given eeg data
+    raw, positions = get_topographic_map(set_file)
+
+    # Original colormap
     original_cmap = plt.cm.Greys
+    # Number of colors in the modified colormap
     n_colors = 256
+    # Create the modified colormap
     color_array = original_cmap(np.linspace(0, 1, n_colors))
-    start_index = int(n_colors * 0.3)
-    color_array[:start_index, :] = color_array[start_index, :]
+    start_index = int(n_colors * 0.3)  
+    color_array[:start_index, :] = color_array[start_index, :]  # Set start colors to a specific value
     modified_cmap = mcolors.ListedColormap(color_array)
 
-    # Create a graph for Class 0
     G1 = nx.Graph()
 
-    # Add nodes using positions
+    # create nodes using positions
     for i in range(len(positions)):
         G1.add_node(i, pos=(positions[i, 0], positions[i, 1]))
 
-    # Add edges for Class 0
+    # create edges
     for i in range(len(positions)):
-        for j in range(i + 1, len(positions)):
-            if graph[0][i, j] != 0:  # Only plot edges for Class 0
-                G1.add_edge(i, j, weight=graph[0][i, j])
+        for j in range(i+1, len(positions)):
+            if graph[i, j] != 0:
+                G1.add_edge(i, j, weight=graph[i, j])
 
-    # Prepare labels and extent
-    labels = {i: str(raw.ch_names[i]) for i in range(len(positions))}
-    extent = [-0.12, 0.12, -0.11, 0.11]
+    extent = [-0.13, 0.13, -0.13, 0.10]
+    # set label names as channel names
+    labels = {}
+    for i in range(len(positions)):
+        labels[i] = str(raw.ch_names[i])
+    
     background = 'images/montage.png'
-
-    # Plot graph for Class 0
-    plt.figure(figsize=(8, 3))
-    plt.subplot(1, 1, 1)
+    # plot graph
+    plt.figure(figsize=(10, 10))
     pos = nx.get_node_attributes(G1, 'pos')
     nx.draw(G1, pos, with_labels=True, node_size=100, font_size=10, labels=labels, font_color='black', node_color='silver', edge_color='rosybrown', width=2)
-
-    # Adjust edge intensity if required
+    # make the edge darker if the weight is higher
     if intensity:
-        if index == 'zscore':
-            # Invert the sign of the weights
-            for u, v in G1.edges:
+        if index == 'cor_idx':
+            # invert the sign of the weights
+            for u,v in G1.edges:
                 G1[u][v]['weight'] = np.abs(G1[u][v]['weight'])
 
-        max_weight = max([G1[u][v]['weight'] for u, v in G1.edges])
-        g1_edge_colors = [G1[u][v]['weight'] / max_weight for u, v in G1.edges]
+        max_weight = max([G1[u][v]['weight'] for u,v in G1.edges]) 
+        g1_edge_colors = [G1[u][v]['weight']/max_weight for u,v in G1.edges]
         nx.draw_networkx_edges(G1, pos, edge_color=g1_edge_colors, edge_cmap=modified_cmap, width=1)
+    labels = nx.get_edge_attributes(G1, 'weight')
 
-    # Add a background image
+    # add a png image in the background
     im = plt.imread(background)
     plt.imshow(im, extent=extent)
-    plt.title('Fast solvers' if classification_type == 'cq' else 'Rest state')
-
-    # Save the figure
+    plt.title(f'{index.upper()} CORRELATIONS for ')
     plt.savefig(file_path, dpi=300)
     plt.close('all')
+
 
 
 

@@ -1,0 +1,276 @@
+curr_time: 20241219-103127
+number_of_subjects: 31
+nelectrodes: 124
+input_channels: 1
+mask: False
+data_folder: ../data_pp/
+timewindow: 1
+start_time: 240
+recording_length: 60
+remove_bad: True
+entrainment: entr_syl
+test_frequency: 0.5
+channels: ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10', 'E11', 'E12', 'E13', 'E14', 'E15', 'E16', 'E17', 'E18', 'E19', 'E20', 'E21', 'E22', 'E23', 'E24', 'E25', 'E26', 'E27', 'E28', 'E29', 'E30', 'E31', 'E32', 'E33', 'E34', 'E35', 'E36', 'E37', 'E38', 'E39', 'E40', 'E41', 'E42', 'E43', 'E44', 'E45', 'E46', 'E47', 'E48', 'E49', 'E50', 'E51', 'E52', 'E53', 'E54', 'E55', 'E56', 'E57', 'E58', 'E59', 'E60', 'E61', 'E62', 'E63', 'E64', 'E65', 'E66', 'E67', 'E68', 'E69', 'E70', 'E71', 'E72', 'E73', 'E74', 'E75', 'E76', 'E77', 'E78', 'E79', 'E80', 'E81', 'E82', 'E83', 'E84', 'E85', 'E86', 'E87', 'E88', 'E89', 'E90', 'E91', 'E92', 'E93', 'E94', 'E95', 'E96', 'E97', 'E98', 'E99', 'E100', 'E101', 'E102', 'E103', 'E104', 'E105', 'E106', 'E107', 'E108', 'E109', 'E110', 'E111', 'E112', 'E113', 'E114', 'E115', 'E116', 'E117', 'E118', 'E119', 'E120', 'E121', 'E122', 'E123', 'E124']
+dataset_size: 230640
+
+
+Computing correlation for E1 and E1
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 1.0
+Cosine similarity: mean 1.0, std 7.548533176304772e-08
+Correlation index: 0.9999999999023329
+P-value: 0.009900990099009901
+---------------------------------------
+
+
+
+Computing correlation for E1 and E2
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.4499815986184733
+Cosine similarity: mean 0.6432138085365295, std 0.4914111793041229
+Correlation index: 0.6481128738576064
+P-value: 0.4158415841584158
+---------------------------------------
+
+
+
+Computing correlation for E1 and E3
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.2432501454230369
+Cosine similarity: mean 0.48341402411460876, std 0.5621283650398254
+Correlation index: 0.5904443533828688
+P-value: 0.8514851485148515
+---------------------------------------
+
+
+
+Computing correlation for E1 and E4
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.15713083005630343
+Cosine similarity: mean 0.3852727711200714, std 0.6001957058906555
+Correlation index: 0.5730577846413176
+P-value: 0.693069306930693
+---------------------------------------
+
+
+
+Computing correlation for E1 and E5
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: -0.015727710381227184
+Cosine similarity: mean 0.20301412045955658, std 0.6364849209785461
+Correlation index: 0.5355210580325165
+P-value: 1.0
+---------------------------------------
+
+
+
+Computing correlation for E1 and E6
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: -0.03174895366865082
+Cosine similarity: mean 0.08303386718034744, std 0.6416958570480347
+Correlation index: 0.5670548736045573
+P-value: 0.9900990099009901
+---------------------------------------
+
+
+
+Computing correlation for E1 and E7
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: -0.0735892963670735
+Cosine similarity: mean -0.05367972329258919, std 0.6327908635139465
+Correlation index: 0.5458810894567674
+P-value: 0.9702970297029703
+---------------------------------------
+
+
+
+Computing correlation for E1 and E8
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.5404157264551918
+Cosine similarity: mean 0.6677728891372681, std 0.46361398696899414
+Correlation index: 0.5943013697039383
+P-value: 0.9306930693069307
+---------------------------------------
+
+
+
+Computing correlation for E1 and E9
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.3891508312970026
+Cosine similarity: mean 0.5259398818016052, std 0.5374732613563538
+Correlation index: 0.6726139367857717
+P-value: 0.21782178217821782
+---------------------------------------
+
+
+
+Computing correlation for E1 and E10
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.2599754976752923
+Cosine similarity: mean 0.4388175904750824, std 0.567727267742157
+Correlation index: 0.5263871060142166
+P-value: 0.9801980198019802
+---------------------------------------
+
+
+
+Computing correlation for E1 and E11
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.05104382776050575
+Cosine similarity: mean 0.24788758158683777, std 0.6310819387435913
+Correlation index: 0.5558979267629633
+P-value: 0.7920792079207921
+---------------------------------------
+
+
+
+Computing correlation for E1 and E12
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.0005474948789221648
+Cosine similarity: mean 0.0939188152551651, std 0.6491732001304626
+Correlation index: 0.5061077965165387
+P-value: 1.0
+---------------------------------------
+
+
+
+Computing correlation for E1 and E13
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: -0.07257732964494985
+Cosine similarity: mean -0.03249786049127579, std 0.6459875702857971
+Correlation index: 0.6048074962232658
+P-value: 0.8613861386138614
+---------------------------------------
+
+
+
+Computing correlation for E1 and E14
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.2725089283140425
+Cosine similarity: mean 0.4214526414871216, std 0.5798200964927673
+Correlation index: 0.5914971046112317
+P-value: 0.6138613861386139
+---------------------------------------
+
+
+
+Computing correlation for E1 and E15
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.15463326096865035
+Cosine similarity: mean 0.3386838734149933, std 0.5971887111663818
+Correlation index: 0.5896150582121402
+P-value: 0.5445544554455446
+---------------------------------------
+
+
+
+Computing correlation for E1 and E16
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.10647632594737369
+Cosine similarity: mean 0.3115391731262207, std 0.6061691045761108
+Correlation index: 0.5971140285789055
+P-value: 0.900990099009901
+---------------------------------------
+
+
+
+Computing correlation for E1 and E17
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+
+Number of data: 1401
+Data shape: (1401, 250)
+Pearson coefficient: 0.2171923890327352
+Cosine similarity: mean 0.33915308117866516, std 0.5955727100372314
+Correlation index: 0.5257264262972793
+P-value: 0.9504950495049505
+---------------------------------------
+
+
+
+Computing correlation for E1 and E18
+
+Dataset1 size: 1401
+Dataset2 size: 1401
+

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import math
 import csv
 import mne
 import copy
@@ -13,8 +14,6 @@ from utils.constants import ch_names, subject_id
 
 CHANNEL_NAMES = ch_names
 SUBJECT_ID = subject_id
-RECORDING_LENGTH = 60 # seconds (use only the first minute of each recording)
-
 
 class EEGDataset(torch.utils.data.Dataset):
     """
@@ -135,27 +134,99 @@ def filter_eeg_data(data: np.array, fs: float, lowcut: float, highcut: float, or
 
     return filtered_eeg_data
 
-def get_subject_bad_time(file_path: str) -> list:
+def get_subject_bad_time(file_path: str, start_time: float, time_range: float, time_window: float) -> list:
     """
-    Reads a CSV file and returns a list of bad time data.
+    Reads a CSV file and returns a list of booleans indicating the presence or absence
+    of an effect for each time window in the given range.
 
     Parameters:
         file_path (str): Path to the CSV file.
+        start_time (float): The starting time of the window.
+        time_range (float): The length of the range (in seconds) to evaluate the effect.
+        time_window (float): The size of each time window (between 0.5 and 1.0 seconds).
 
     Returns:
-        list: A list of tuples containing data from the specified columns.
+        list: A list of booleans, where True indicates the effect is active during
+              that time window, and False otherwise.
     """
-    bad_data = []
+    if not (0.5 <= time_window <= 1.0):
+        raise ValueError("time_window must be between 0.5 and 1.0 seconds.")
 
+    num_intervals = math.ceil(time_range / time_window)
+    bad_time_list = [False] * num_intervals
+
+    # read the onset and duration data from the CSV file
     with open(file_path, mode='r') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            bad_data.append((float(row['onset']), float(row[' duration']))) # header for duration has a space!
+            onset = float(row['onset'])
+            duration = float(row[' duration'])  # header for duration has a space!
 
-    return bad_data
+            # skip processing if the effect is completely outside the time window
+            if onset >= (start_time + time_range) or (onset + duration) <= start_time:
+                continue
 
-def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_subjects: int = 10, 
-                  time_window: float = 1, save_spec: bool = True, channel_list: list = None) -> EEGDataset:
+            # calculate start and end indices of the effect in the windowed list
+            effect_start = max(onset, start_time)
+            effect_end = min(onset + duration, start_time + time_range)
+
+            start_index = int((effect_start - start_time) / time_window)
+            end_index = int(math.ceil((effect_end - start_time) / time_window))
+
+            # update the boolean list for each affected time window
+            for i in range(start_index, end_index):
+                if 0 <= i < num_intervals:
+                    bad_time_list[i] = True
+
+    return bad_time_list
+
+
+# TO DO: FIX THIS FUNCTION
+def remove_bad_chunks(dataset: EEGDataset) -> EEGDataset:
+    """
+    Removes the bad chunks of time from the dataset.
+
+    Parameters:
+        dataset (EEGDataset): The dataset from which bad chunks need to be removed.
+
+    Returns:
+        EEGDataset: A new dataset without bad chunks of time.
+    """
+    spectrograms = []
+    raw = []
+    bad_time = []
+    ids = []
+    channels = []
+
+    for i in range(len(dataset)):
+        current_spectrogram, current_raw, current_bad_time, current_id, current_channels = (
+            dataset.get_spectrogram(i),
+            dataset.get_raw(i),
+            dataset.get_bad_time(i),
+            dataset.get_id(i),
+            dataset.get_channel(i)
+        )
+
+        if not current_bad_time:
+            spectrograms.append(current_spectrogram)
+            raw.append(current_raw)
+            bad_time.append(current_bad_time)
+            ids.append(current_id)
+            channels.append(current_channels)
+
+    return EEGDataset(
+        spectrograms=spectrograms,
+        raw=raw,
+        bad_time=bad_time,
+        id=ids,
+        channel=channels,
+        info=dataset.__getinfo__(),
+    ) 
+
+
+def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_subjects: int = 31, 
+                  time_window: float = 1, save_spec: bool = False, channel_list: list = None, 
+                  start_time: int = 0, recording_length: int = 60, select: bool = True) -> EEGDataset:
     """
     Create an EEGDataset object using the data in the folder
     Input:
@@ -169,8 +240,12 @@ def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_su
     Output: 
         dataset: an EEGDataset object
     """
+    if number_of_subjects < 1 or number_of_subjects > len(SUBJECT_ID):
+        raise ValueError(f"Invalid input: please select a proper number of subjects.")
     # final destination of the dataset
-    file_path = f'{data_path}/eeg_dataset_ns_{number_of_subjects}_ch_{input_channels}_{str(time_window).replace(".", "")}sec.pkl'
+    elec = len(channel_list) if channel_list is not None else len(CHANNEL_NAMES)
+    sel = 'clean' if select else 'not_clean'
+    file_path = f'{data_path}/eeg_dataset_ns_{number_of_subjects}_nc_{str(elec)}_ch_{input_channels}_tw{str(time_window).replace(".", "")}sec_st{str(start_time)}_rl{str(recording_length)}_{sel}.pkl'
 
     # mkdir if the folder does not exist
     if not os.path.exists(data_path):
@@ -186,15 +261,15 @@ def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_su
         logger.info("Creating dataset... this may take a while")
     
     # for each edf file in folder, we save the following information
-    ids = [] # subject ID + recording ID + segment ID (e.g. 'Subject03_2_90')
+    ids = [] # subject ID
     channels = [] # channel names
     raw = [] # raw eeg data
     spectrograms = [] # corresponding spectrograms
     bad_time = [] # chunks to discard
 
     nchannels = len(CHANNEL_NAMES) 
-    
-    for subj in SUBJECT_ID:
+
+    for subj in SUBJECT_ID[:number_of_subjects]:
         # format the pattern
         pattern = f"_BB{str(subj).zfill(2)}"
         matching_files = [f for f in os.listdir(folder) if pattern in f and f.endswith('.set')]    
@@ -210,7 +285,6 @@ def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_su
 
         # id should be of the form BBxy
         id = file.split('_')[9]
-        bad_list = get_subject_bad_time(folder + csv)
 
         # read set file and change reference to average
         data = mne.io.read_raw_eeglab(folder + file, preload=True, verbose=False)
@@ -221,14 +295,16 @@ def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_su
 
         factor = 1/time_window
         segment_length = int(fs/factor) 
-        n_segments = int(factor*RECORDING_LENGTH) # number of segments in the recording
-        bad_chunks = [1] * n_segments
+        n_segments = int(factor*recording_length) # number of segments in the recording
 
-        for i in range(n_segments):
-            # calculate the start and end time of the current window
-            window_start = i * time_window
-            window_end = (i + 1) * time_window
-            bad_chunks[i] = 0 if any(start_time < window_end and (start_time + duration) > window_start for start_time, duration in bad_list) else 1
+        # deal with bad chunks of time
+        bad_chunks = get_subject_bad_time(folder + csv, start_time=start_time, 
+                                          time_range=recording_length, time_window=time_window)
+        bad_chunks_subject = [element for element in bad_chunks for _ in range(nchannels)] if channel_list is None else [element for element in bad_chunks for _ in range(len(channel_list))]
+        if input_channels == 1:
+            bad_time.extend(bad_chunks_subject)
+        else:
+            bad_time.append(bad_chunks_subject)
 
         for j in range(n_segments):
             img_eeg = []
@@ -261,16 +337,12 @@ def read_eeg_data(folder: str, data_path: str, input_channels: int, number_of_su
             if input_channels == 1:
                 spectrograms.extend(np.array(img_eeg))
                 raw.extend(raw_eeg)
-
-                bad_time.extend([bad_chunks]*nchannels) if channel_list is None else bad_time.extend([bad_chunks]*len(channel_list))
                 ids.extend(identifiers)
                 channels.extend(CHANNEL_NAMES) if channel_list is None else channels.extend(channel_list)
 
             else:
                 spectrograms.append(np.array(img_eeg))
                 raw.append(raw_eeg)
-    
-                bad_time.append([bad_chunks]*nchannels) if channel_list is None else bad_time.append([bad_chunks]*len(channel_list))
                 ids.append(identifiers)
                 channels.append(CHANNEL_NAMES) if channel_list is None else channels.append(channel_list)
 
